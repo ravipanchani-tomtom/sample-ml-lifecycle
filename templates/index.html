@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Fashion MNIST Training</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+</head>
+<body>
+    <h1>Fashion MNIST Training</h1>
+    <button onclick="startTraining()">Start Training</button>
+    <button onclick="stopTraining()">Stop Training</button>
+    <canvas id="trainingChart" width="400" height="200"></canvas>
+    <script>
+        var ws = new WebSocket("ws://" + location.host + "/ws");
+        var trainingChart = new Chart(document.getElementById('trainingChart').getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Loss',
+                    data: [],
+                    backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 1,
+                    yAxisID: 'y'
+                }, {
+                    label: 'Accuracy',
+                    data: [],
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1,
+                    yAxisID: 'y1'
+                }]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        position: 'left'
+                    },
+                    y1: {
+                        beginAtZero: true,
+                        position: 'right',
+                        max: 100
+                    }
+                }
+            }
+        });
+
+        ws.onmessage = function(event) {
+            var data = JSON.parse(event.data);
+            if (data.loss && data.accuracy) {
+                var lossData = data.loss;
+                var accuracyData = data.accuracy;
+                trainingChart.data.labels = Array(lossData.length).fill(0).map((_, i) => i + 1);
+                trainingChart.data.datasets[0].data = lossData;
+                trainingChart.data.datasets[1].data = accuracyData;
+                trainingChart.update();
+            } else if (event.data === 'training_complete') {
+                alert('Training complete!');
+            }
+        };
+
+        function startTraining() {
+            fetch('/start_training', { method: 'POST' });
+        }
+
+        function stopTraining() {
+            fetch('/stop_training', { method: 'POST' });
+        }
+    </script>
+</body>
+</html>
