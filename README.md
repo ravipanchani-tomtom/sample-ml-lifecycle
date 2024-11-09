@@ -1,6 +1,6 @@
 # CNN with CIFAR-10 using PyTorch and FastAPI
 
-This repository contains a simple Convolutional Neural Network (CNN) trained on the CIFAR-10 dataset using PyTorch. Training progress and results are served via a FastAPI server.
+This repository contains a simple Convolutional Neural Network (CNN) trained on the CIFAR-10 dataset using PyTorch. Training progress and results are served via a FastAPI server with live logging capabilities.
 
 ## Requirements
 
@@ -9,11 +9,13 @@ This repository contains a simple Convolutional Neural Network (CNN) trained on 
 - torchvision
 - fastapi
 - uvicorn
-- jinja2 (for HTML rendering)
+- tqdm
+- websockets
+- jinja2
 
 ## Setup
 
 1. Install the required packages:
 
 ```bash
-pip install torch torchvision fastapi uvicorn jinja2
+pip install torch torchvision fastapi uvicorn tqdm websockets jinja2
