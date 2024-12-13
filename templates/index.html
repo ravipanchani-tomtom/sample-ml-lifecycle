@@ -15,6 +15,8 @@
     </select>
     <label for="epochs">Epochs:</label>
     <input type="number" id="epochs" name="epochs" value="10">
+    <label for="resume">Resume Training:</label>
+    <input type="checkbox" id="resume" name="resume">
     <button onclick="startTraining()">Start Training</button>
     <button onclick="stopTraining()">Stop Training</button>
     <canvas id="trainingChart" width="400" height="200"></canvas>
@@ -22,54 +24,75 @@
     <input type="file" id="imageInput" accept="image/*">
     <button onclick="predict()">Predict</button>
     <p id="predictionResult"></p>
-    <script>
-        var ws = new WebSocket("ws://" + location.host + "/ws");
-        var trainingChart = new Chart(document.getElementById('trainingChart').getContext('2d'), {
-            type: 'line',
-            data: {
-                labels: [],
-                datasets: [{
-                    label: 'Loss',
-                    data: [],
-                    backgroundColor: 'rgba(255, 99, 132, 0.2)',
-                    borderColor: 'rgba(255, 99, 132, 1)',
-                    borderWidth: 1,
-                    yAxisID: 'y'
-                }, {
-                    label: 'Accuracy',
-                    data: [],
-                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                    borderColor: 'rgba(54, 162, 235, 1)',
-                    borderWidth: 1,
-                    yAxisID: 'y1'
-                }]
-            },
-            options: {
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        position: 'left'
-                    },
-                    y1: {
-                        beginAtZero: true,
-                        position: 'right',
-                        max: 100
-                    }
-                }
-            }
-        });
+    <h2>Test Model</h2>
+    <label for="modelId">Model ID:</label>
+    <input type="text" id="modelId" name="modelId">
+    <label for="weightsType">Weights Type:</label>
+    <select id="weightsType" name="weightsType">
+        <option value="best">Best</option>
+        <option value="latest">Latest</option>
+    </select>
+    <button onclick="testModel()">Test Model</button>
+    <div id="testResults"></div>
+    <h2>Experiments Summary</h2>
+    <button onclick="getExperimentsSummary()">Get Summary</button>
+    <div id="experimentsSummary"></div>
 
-        ws.onmessage = function(event) {
+    <script>
+        var socket = new WebSocket("ws://" + location.host + "/ws");
+        var trainingCharts = {};
+
+        socket.onmessage = function(event) {
             var data = JSON.parse(event.data);
             if (data.loss && data.accuracy) {
-                var lossData = data.loss;
-                var accuracyData = data.accuracy;
-                trainingChart.data.labels = Array(lossData.length).fill(0).map((_, i) => i + 1);
-                trainingChart.data.datasets[0].data = lossData;
-                trainingChart.data.datasets[1].data = accuracyData;
-                trainingChart.update();
+                var modelId = data.model_id;
+                if (!trainingCharts[modelId]) {
+                    var canvas = document.createElement('canvas');
+                    canvas.width = 400;
+                    canvas.height = 200;
+                    document.body.appendChild(canvas);
+                    trainingCharts[modelId] = new Chart(canvas.getContext('2d'), {
+                        type: 'line',
+                        data: {
+                            labels: [],
+                            datasets: [{
+                                label: 'Loss',
+                                data: [],
+                                backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                                borderColor: 'rgba(255, 99, 132, 1)',
+                                borderWidth: 1,
+                                yAxisID: 'y'
+                            }, {
+                                label: 'Accuracy',
+                                data: [],
+                                backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                                borderColor: 'rgba(54, 162, 235, 1)',
+                                borderWidth: 1,
+                                yAxisID: 'y1'
+                            }]
+                        },
+                        options: {
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    position: 'left'
+                                },
+                                y1: {
+                                    beginAtZero: true,
+                                    position: 'right',
+                                    max: 100
+                                }
+                            }
+                        }
+                    });
+                }
+                var chart = trainingCharts[modelId];
+                chart.data.labels = Array(data.loss.length).fill(0).map((_, i) => i + 1);
+                chart.data.datasets[0].data = data.loss;
+                chart.data.datasets[1].data = data.accuracy;
+                chart.update();
             } else if (data.message === 'training_complete') {
-                alert('Training complete!');
+                alert('Training complete for model ' + data.model_id);
             }
         };
 
@@ -77,17 +100,33 @@
             var learningRate = parseFloat(document.getElementById('learningRate').value);
             var optimizer = document.getElementById('optimizer').value;
             var epochs = parseInt(document.getElementById('epochs').value);
+            var resume = document.getElementById('resume').checked;
             fetch('/start_training', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ learning_rate: learningRate, optimizer: optimizer, epochs: epochs })
+                body: JSON.stringify({ learning_rate: learningRate, optimizer: optimizer, epochs: epochs, resume: resume })
+            })
+            .then(response => response.json())
+            .then(data => {
+                var modelId = data.model_id;
+                socket.send("start_training:" + modelId);
             });
         }
 
         function stopTraining() {
-            fetch('/stop_training', { method: 'POST' });
+            var modelId = prompt("Enter the model ID to stop training:");
+            if (modelId) {
+                fetch('/stop_training', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ model_id: modelId })
+                });
+                socket.send("stop_training:" + modelId);
+            }
         }
 
         function predict() {
@@ -124,6 +163,50 @@
                 };
                 reader.readAsDataURL(input.files[0]);
             }
+        }
+
+        function testModel() {
+            var modelId = document.getElementById('modelId').value;
+            var weightsType = document.getElementById('weightsType').value;
+            fetch('/test_model', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ model_id: modelId, weights_type: weightsType })
+            })
+            .then(response => response.json())
+            .then(data => {
+                var testResultsDiv = document.getElementById('testResults');
+                testResultsDiv.innerHTML = '';
+                data.images.forEach((img, index) => {
+                    var imgElement = document.createElement('img');
+                    imgElement.src = `data:image;base64,${img}`;
+                    var div = document.createElement('div');
+                    div.appendChild(imgElement);
+                    var predText = document.createElement('p');
+                    predText.textContent = `Prediction: ${data.predictions[index]}`;
+                    div.appendChild(predText);
+                    var labelText = document.createElement('p');
+                    labelText.textContent = `Label: ${data.labels[index]}`;
+                    div.appendChild(labelText);
+                    testResultsDiv.appendChild(div);
+                });
+            });
+        }
+
+        function getExperimentsSummary() {
+            fetch('/experiments_summary')
+            .then(response => response.json())
+            .then(data => {
+                var summaryDiv = document.getElementById('experimentsSummary');
+                summaryDiv.innerHTML = '';
+                data.forEach(exp => {
+                    var div = document.createElement('div');
+                    div.innerHTML = `<p>Model ID: ${exp.model_id} | Best Train Accuracy: ${exp.best_train_accuracy} | Best Test Accuracy: ${exp.best_test_accuracy}</p>`;
+                    summaryDiv.appendChild(div);
+                });
+            });
         }
     </script>
 </body>
