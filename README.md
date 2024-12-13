@@ -7,6 +7,11 @@ This project demonstrates training a SimpleCNN model on the Fashion MNIST datase
 - Train a SimpleCNN model on the Fashion MNIST dataset.
 - Display live training metrics (loss and accuracy) on a web UI.
 - Start and stop training from the web UI.
+- Save the best model checkpoints during training.
+- Resume training from the last checkpoint.
+- Allow multiple training sessions in parallel.
+- Test the model on random images from the test set and display the results.
+- Provide a summary of experiments with the best training and test accuracies.
 
 ## Requirements
 
@@ -16,6 +21,7 @@ This project demonstrates training a SimpleCNN model on the Fashion MNIST datase
 - Torch
 - Torchvision
 - Tqdm
+- Pillow
 - Chart.js (for the frontend)
 
 ## Installation
@@ -34,7 +40,7 @@ This project demonstrates training a SimpleCNN model on the Fashion MNIST datase
 
 3. Install the required packages:
     ```sh
-    pip install fastapi uvicorn torch torchvision tqdm
+    pip install fastapi uvicorn torch torchvision tqdm pillow
     ```
 
 ## Usage
@@ -47,6 +53,10 @@ This project demonstrates training a SimpleCNN model on the Fashion MNIST datase
 2. Open your web browser and navigate to `http://localhost:8000`.
 
 3. Use the "Start Training" and "Stop Training" buttons to control the training process. The training metrics (loss and accuracy) will be displayed on a single chart with two different colored lines.
+
+4. After training, you can test the model on random images from the test set and view the results.
+
+5. View the summary of experiments to see the best training and test accuracies for each model.
 
 ## File Structure
 
